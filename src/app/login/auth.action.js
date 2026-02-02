@@ -23,7 +23,11 @@ export async function signUp({email, password}) {
 
     const { error: signUpError } = await client.auth.signUp({
         email ,
-        password
+        password ,
+        options: {
+            emailRedirectTo: 'https://your-app.com/login',
+        },
+
     });
 
     if (signUpError){
