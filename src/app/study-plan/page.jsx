@@ -193,7 +193,7 @@ function ResourceManager(){
   useEffect(()=>{
     if (!localfileList || localfileList.length === 0) return; 
 
-    upload(localfileList[0]);
+    upload(localfileList[localfileList.length - 1]);
     
   }, [localfileList])
 
