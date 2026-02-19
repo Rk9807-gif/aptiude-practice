@@ -167,7 +167,7 @@ function Sidebar({set, active}){
 
       const { data: { user } } = await client.auth.getUser();
 
-      const { data, error } = await client.from("Question").select('category');
+      const { data, error } = await client.from("Question").select('category').eq("user_id" , user.id);
 
       if (error) {
         console.error(error.message);
@@ -212,7 +212,7 @@ function QuestionSection({ active }){
 
       const { data: { user } } = await client.auth.getUser();
 
-      const { data, error } = await client.from("Question").select('*').eq('category', active);
+      const { data, error } = await client.from("Question").select('*').eq('category', active).eq("user_id" , user.id);
 
       if (error) {
         console.error(error.message);
