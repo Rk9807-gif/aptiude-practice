@@ -1,4 +1,4 @@
-import { browserClient } from "@/supabase/server";
+import { browserClient } from "@/supabase/serverUtility";
 import { useRouter } from "next/router";
 
 export async function signIn({email, password}) {
@@ -31,7 +31,7 @@ export async function signUp({email, password}) {
     });
 
     if (signUpError){
-        return signUpError.message;
+        return new Error("Sign Up Failed : ", signUpError.message);
     }
 
     return "Varification Mail has been send successfully"

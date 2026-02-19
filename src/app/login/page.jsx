@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, signUp } from "./auth.action"
+import { signIn, signUp } from "./auth.action";
 
 function LoginComponent(){
 

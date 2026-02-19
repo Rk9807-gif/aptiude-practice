@@ -1,8 +1,11 @@
 "use client";
 
-import { browserClient } from "@/supabase/server";
+
+import { AppContext } from "@/app/provider";
+import { browserClient } from "@/supabase/serverUtility";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { useContext, useEffect, useState } from "react";
 
 const routes = [
   { name: "Home", path: "/" },
@@ -14,8 +17,10 @@ const routes = [
 export default function Navbar(){
 
   const currentPath = usePathname();
-
-  const router = useRouter(); // Initialize the router
+  
+  const router = useRouter();
+ 
+  const { logged } = useContext(AppContext);
 
   const handleSignOut = async () => {
     const client = browserClient();
@@ -29,7 +34,6 @@ export default function Navbar(){
       console.error("Error signing out:", error.message);
     }
   };
- 
 
   return(
     <nav className="grid w-full grid-cols-[200_1fr_auto] max-h-20">
@@ -58,9 +62,9 @@ export default function Navbar(){
       </div>
       <div className="grid mx-2 w-30">
         <button className="my-auto bg-blue-900/60 my-auto py-2 px-4 rounded-sm font-bold text-zinc-300 hover:scale-101 active:scale-99"
-          onClick={handleSignOut}
+          onClick={ logged ? handleSignOut : () => router.replace("/login")}
         >
-          Log Out
+          { logged ? "Sign Out" : "Sign In"}
         </button> 
       </div>
     </nav>

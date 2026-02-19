@@ -1,9 +1,9 @@
 "use client"
-import { useState ,useEffect, act } from "react";
-import { browserClient } from "@/supabase/server";
-import { syncMaterialRecoard } from "./handelMaterial.actions"
-import { synthesizeFile } from "./synthesize.action";
-
+import { useState ,useEffect, act, useContext } from "react";
+import { browserClient } from "@/supabase/serverUtility";
+import { uploadFileWithSync } from "./handelMaterial.actions"
+import { processFileList, synthesizeFile } from "./synthesize.action";
+import { AppContext } from "../provider";
 
 
 function getDate(){
@@ -30,8 +30,7 @@ export default function Page(){
 
             <QuestionSection active={currentTopic}>
             </QuestionSection>
-          
-            
+  
             <div className="m-2 grid grid-rows-[1fr_auto] gap-4">
               <ResourceManager/> 
             </div>
@@ -160,124 +159,6 @@ function Card({title}){
   );
 }
 
-function ResourceManager(){
-
-  const [localfileList, setLocalFileList] = useState([]);
-  const [fetchedfileList, setFetchedfileList] = useState([]);
-  const [change, setChange] = useState(false);
-
-  useEffect(()=>{
-    async function fetchMaterials() {
-   
-
-      const client = browserClient();
-
-      const { data: {user} = {}} = await client.auth.getUser();
-
-      const { data , error:StorageError } = await client.from("Material").select('*').eq("user_id" , user.id); 
-      
-      if (StorageError){
-        console.error("Their is a upload Error" , StorageError);
-      }
-
-      if (data){
-        setFetchedfileList(data);
-      };
-
-    }
-
-    fetchMaterials();
-
-  },[change])
-
-  useEffect(()=>{
-    if (!localfileList || localfileList.length === 0) return; 
-
-    upload(localfileList[localfileList.length - 1]);
-    
-  }, [localfileList])
-
-  async function upload(file) {
-   
-    const client = browserClient();
-    
-    const { data: {user} = {}} = await client.auth.getUser();
-
-   
-    if (!user) {
-        alert("Please login to upload files.");
-        return;
-    }
-  
-
-    const path = `${user.id}/${file.name}`
-    const { data , error:StorageError } = await client.storage.from("Material").upload(path, file);
-
-    if (StorageError){
-      alart("Their is a upload Error" , StorageError);
-    }
-    
-    if (data){
-      const {data : syncResult, error: syncError} = await syncMaterialRecoard({file_path : path , file_name : file.name});
-      syncError ? console.error(syncError) : setChange(prev=>!prev) , setLocalFileList([]);
-    }
-    
-  }
-
-  return(
-    <div className="grid grid-rows-[1fr_auto] gap-4">
-      <div className="bg-neutral-800 flex flex-col rounded-xl text-zinc-400 p-4 w-60">
-      
-        <ul className="text-sm grow">
-          <li>
-            <h1 className="text-xl font-bold text-white">
-              Manage Resourses
-            </h1>
-            <p className="text-xs mb-2"><b>Caution :</b> Files will be lost on reload. To maintain history you must login</p>
-          </li>
-          {
-            fetchedfileList.map((file, i)=>{
-              const lastDotIndex = file.file_name.lastIndexOf(".");
-              
-              return(
-              <li key={i} index={i} title={file.status} className="flex max-w-full text-blue-400 hover:underline">
-                <span className="truncate pe-0" >{file.file_name.substring(0, lastDotIndex)}</span>
-                <span>{file.file_name.substring(lastDotIndex)}</span>
-              </li>
-            )})
-          }
-        </ul>
-
-        { !!localfileList.length &&
-        <div className="grow flex flex-col">
-          <ul className="grow text-sm max-w-full">
-            <li className="text-white">Uploading</li>
-            {
-              localfileList.map((file, i)=>{
-                const lastDotIndex = file.name.lastIndexOf(".");
-                
-                return(
-                <li key={i} index={i} title={file.name} className="flex max-w-full text-blue-400 hover:underline">
-                  <span className="truncate pe-0" >{file.name.substring(0, lastDotIndex)}</span>
-                  <span>{file.name.substring(lastDotIndex)}</span>
-                </li>
-              )})
-            }
-          </ul>
-            
-        </div>
-        }
-        <button className="bg-neutral-800 text-neutral-200 w-full rounded-xl p-3 border border-neutral-700 hover:bg-neutral-700 active:scale-[0.98] transition-all"
-          onClick={()=>synthesizeFile(fetchedfileList[0])}
-          > 
-          Synthesize
-        </button>
-      </div>
-      <FileUpload externalUpload={setLocalFileList}/>
-    </div>
-  );
-}
-
 function Sidebar({set, active}){
 
   useEffect(()=>{
@@ -347,6 +228,8 @@ function QuestionSection({ active }){
     fetchQuestions();
   },[active]);
 
+  
+
   return(
 
     <div className={"grid place-items-center gap-8 overflow-y-auto max-h-160 [&::-webkit-scrollbar]:hidden snap-y snap-mandatory" + `${loading && ''}`}>
@@ -413,6 +296,176 @@ function Question({ question }) {
             </div>
         }
 
+    </div>
+  );
+}
+
+
+
+function ResourceManager(){
+
+  const [localfileList, setLocalFileList] = useState([]);
+  const [fetchedfileList, setFetchedfileList] = useState([]);
+  const [change, setChange] = useState(false);
+  const { logged } = useContext(AppContext);
+
+  useEffect(()=>{
+    async function fetchMaterials() {
+   
+
+      const client = browserClient();
+
+      const { data: {user} = {}, error: authError} = await client.auth.getUser();
+
+      if (authError){
+        console.error("Their is a upload Error" , authError.message);
+        return
+      }
+
+      const { data , error:StorageError } = await client.from("Material").select('*').eq("user_id" , user.id); 
+      
+      if (StorageError){
+        console.error("Their is a upload Error" , StorageError);
+      }
+
+
+      if (data){
+        setFetchedfileList(data);
+      };
+
+    }
+
+    fetchMaterials();
+
+  },[change])
+
+  function viewFile(file){
+    
+    const previewUrl = URL.createObjectURL(file);
+    window.open(previewUrl, '_blank');
+    setTimeout(() => {
+      URL.revokeObjectURL(previewUrl);
+    }, 10000);
+
+  }
+
+  async function process(e){
+    e.preventDefault();
+    const form = document.getElementById("uploadForm");
+    const rawFormdata = new FormData(form);
+    const formData = Object.fromEntries(rawFormdata);
+    const SaveList = []
+    const SynthesizeList = []
+    const skipList = []
+
+    localfileList.map((file)=>{
+      const identifier = `${file.name}-${file.size}`;
+      const operation = formData[identifier];
+      
+      switch(operation){
+        case "save" : 
+          return SaveList.push(file);
+        case "process" :
+          return SynthesizeList.push(file);
+        default :
+          return skipList.push(file) 
+      }
+    })
+
+    setLocalFileList(skipList);
+  
+    const uploadResult = await uploadFileWithSync(SaveList);
+    const sythesize = await processFileList(SynthesizeList);
+    
+    const errors = uploadResult.filter( result => result.sucess === false );
+
+    if (errors.length > 0) {
+      console.log(errors.map( error => error.message ))
+    }
+
+    setTimeout(setChange(prev => !prev),5000);
+    
+  }
+
+
+  return(
+    <div className="grid grid-rows-[1fr_auto] gap-4">
+      <div className="bg-neutral-800 flex flex-col rounded-xl text-zinc-400 p-4 w-60">
+      
+        <ul className="text-sm grow">
+          <li>
+            <h1 className="text-xl font-bold text-white">
+              Manage Resourses
+            </h1>
+            <p className="text-xs mb-2"><b>Caution :</b> Files will be lost on reload. To maintain history you must login</p>
+          </li>
+          {
+            fetchedfileList.map((file, i)=>{
+              const lastDotIndex = file.file_name.lastIndexOf(".");
+              
+              return(
+              <li key={i} index={i} title={file.status} className="flex max-w-full text-blue-400 hover:underline">
+                <span className="truncate pe-0" >{file.file_name.substring(0, lastDotIndex)}</span>
+                <span>{file.file_name.substring(lastDotIndex)}</span>
+              </li>
+            )})
+          }
+        </ul>
+
+        { !!localfileList.length &&
+        <form className="grow flex flex-col" id="uploadForm">
+          <ul className="grow text-sm max-w-full cursor-pointer flex flex-col gap-1 max-h-80 overflow-y-auto
+            [&::-webkit-scrollbar]:w-1 
+            [&::-webkit-scrollbar-track]:bg-transparent 
+            [&::-webkit-scrollbar-thumb]:bg-neutral-500 
+            [&::-webkit-scrollbar-thumb]:rounded-full
+          ">
+            <li className="text-white">File Queue</li>
+            {
+              localfileList.map((file, i)=>{
+               
+                
+                return(
+                  <li key={i} index={i} title={file.name} className="text-zinc-400 p-1.5 rounded-lg hover:bg-neutral-900 hover:text-white has-[:checked]:bg-neutral-900 has-[:checked]:text-white">
+                    <div className="max-w-full group text-lg">
+                      <div onClick={()=>viewFile(file)}>
+                        {file.name}
+                      </div>
+                        
+                      <div className="flex w-full gap-1 h-0 overflow-hidden group-hover:h-fit transition-size duration-500 linear"> 
+                          <div className="w-1/2">
+                            <input className="peer hidden" type="radio" name={`${file.name}-${file.size}`} id={`saveAndProcess-${i}`} value="save" disabled={!logged} />
+                            <label className="inline-flex items-center justify-center rounded-full 
+                              hover:border-1 hover:border-current/15 peer-checked:bg-blue-900/60 h-8 w-full " 
+                              title="Upload and Synthesize" 
+                              htmlFor={`saveAndProcess-${i}`}>
+                              <img src="\saveAndProcess.svg" alt="uploadAndProcess"/>
+                            </label>
+                          </div>
+                          <div className="w-1/2">
+                            <input className="peer hidden" type="radio" name={`${file.name}-${file.size}`} id={`process-${i}`} value="process"  />
+                            <label className="inline-flex items-center justify-center rounded-full 
+                              hover:border-1 hover:border-current/15 peer-checked:bg-blue-900/60 h-8 w-full" 
+                              title="Synthesize" 
+                              htmlFor={`process-${i}`}>
+                              <img src="\synthesize.svg" alt="uploadAndProcess"/>
+                            </label>
+                          </div>                                            
+                      </div>
+                    </div> 
+                  </li>
+              )})
+            }
+          </ul>
+            <button className="bg-neutral-800 text-neutral-200 w-full rounded-xl p-3 border border-neutral-700 hover:bg-neutral-700 active:scale-[0.98] transition-all"
+              onClick={process}
+              > 
+                Process Batch
+            </button>
+        </form>
+        }
+      </div>
+      <FileUpload externalUpload={setLocalFileList}/>
     </div>
   );
 }
