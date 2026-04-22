@@ -21,19 +21,26 @@ function LoginComponent(){
        
         let result = undefined;
         const loginDetails = {email: mail, password: password}
-
-        switch (action){
+        
+        try{
+            switch (action){
             case "signIn" :        
                 result = await signIn(loginDetails) ;
                 break ;
             case "signUp" :
                 result = await signUp(loginDetails) ;
                 break;
-        }
+            }
 
-        result === "authenticated" ?
-            router.replace(searchParams.get("redirect") || "/") :
-            setMessage(result);
+            if(result === "authenticated"){
+                router.replace(searchParams.get("redirect") || "/")
+            }else{
+                const errorMessage = typeof result === "object" ? result.message : result;
+                setMessage(errorMessage || "An unknown error occurred");
+            }
+        }catch(err){
+            setMessage(err.message || "Something went wrong");
+        }
     }
 
 
