@@ -12,8 +12,10 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.3",
+    "autoprefixer": "^10.5.0",
     "jsonrepair": "^3.13.2",
     "next": "16.1.6",
+    "postcss": "^8.5.10",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -21,6 +23,6 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4.2.4"
   }
 }

@@ -200,7 +200,7 @@ export async function processFileList(fileList) {
         if (questionInsertionError){
             console.error(questionInsertionError.message);
         }
-        return
+        return {success: true}
     }
     
     return { success: true, saved: false, data: allExtractedQuestions };

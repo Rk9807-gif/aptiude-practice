@@ -243,63 +243,145 @@ function QuestionSection({ active }){
 }
 
 function Question({ question }) {
+  const [selected, setSelected] = useState([]); // Array for MCQ/MSQ keys
+  const [inputValue, setInputValue] = useState(""); // String for single_input
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const [active, setActive] = useState(null);
-  
-  const {correct, ...optionsOnly} = question.options
+  // Destructure: correct is an array, optionsOnly contains a, b, c...
+  const { correct, ...optionsOnly } = question.options;
+
+  const isMCQ = question.type === 'mcq';
+  const isMSQ = question.type === 'msq';
+  const isSingleInput = question.type === 'single_input';
+
+  // --- Handlers ---
+  const handleOptionClick = (key) => {
+    if (isSubmitted) return;
+
+    if (isMSQ) {
+      setSelected(prev => 
+        prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+      );
+    } else if (isMCQ) {
+      setSelected([key]);
+      setIsSubmitted(true); // Auto-reveal for single choice
+    }
+  };
+
+  const handleTextSubmit = (e) => {
+    e.preventDefault();
+    if (inputValue.trim()) setIsSubmitted(true);
+  };
+
+  // --- Evaluation ---
+  const checkIsCorrect = () => {
+    if (isSingleInput) {
+      // Compare string input to first element of correct array
+      return inputValue.trim().toLowerCase() === String(correct[0]).toLowerCase();
+    }
+    // Compare arrays for MCQ/MSQ
+    return (
+      selected.length === correct.length &&
+      selected.every(val => correct.includes(val))
+    );
+  };
+
+  const isCorrect = checkIsCorrect();
 
   return (
-    <div className="p-6 bg-neutral-900 border border-neutral-800 max-w-lg rounded-3xl shadow-xl snap-start">
-
-      <span className="block w-fit px-3 py-1 bg-blue-500 rounded-full text-gray-900 font-bold ">
-        {question.metadata.topic.toUpperCase()}
+    <div className="p-6 bg-neutral-900 border border-neutral-800 max-w-lg w-full rounded-3xl shadow-xl snap-start">
+      {/* Category/Topic Badge */}
+      <span className="block w-fit px-3 py-1 bg-blue-500 rounded-full text-gray-900 text-[10px] font-black uppercase tracking-widest mb-4">
+        {question.metadata.topic}
       </span>
 
-
-      <div className="my-4 text-zinc-100 text-lg leading-relaxed">
+      {/* Question Body */}
+      <div className="mb-6 text-zinc-100 text-lg leading-relaxed">
         {question.stem}
       </div>
 
-      <div>
-        {
-          question.type === 'mcq' || question.type === 'msq'  ?
-           
-            <div className="grid grid-cols-2 gap-3">
-              {Object.entries(optionsOnly) 
-                .map(([key, value]) => (
-                  <button 
-                    onClick={()=>setActive(key)}
-                    key={key}
-                    className={`flex items-center gap-3 p-3 rounded-2xl bg-neutral-800 border ${ active === key ? 'border-blue-500 bg-neutral-800/50' : 'hover:border-blue-500 hover:bg-neutral-800/50 border-neutral-700' } transition-all group`}
-                  >
-                    <span className={`w-6 h-6 flex items-center justify-center rounded-lg bg-neutral-700 text-xs font-bold ${ active === key ? 'text-blue-400' : 'group-hover:text-blue-400 text-zinc-400'} uppercase`}>
-                      {key}
-                    </span>
-                    <span className="text-zinc-300 text-sm">{value}</span>
-                  </button>
-                ))}
-            </div>
-          :
-
-          <div>
-
+      {/* Interactive Section */}
+      <div className="space-y-4">
+        {isSingleInput ? (
+          /* Single Input Mode */
+          <form onSubmit={handleTextSubmit} className="flex flex-col gap-2">
+            <input 
+              type="text"
+              disabled={isSubmitted}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter answer..."
+              className="w-full p-4 rounded-2xl bg-neutral-800 border border-neutral-700 text-zinc-200 focus:border-blue-500 outline-none transition-all placeholder:text-zinc-600"
+            />
+            {!isSubmitted && (
+              <button type="submit" className="py-3 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-2xl font-bold hover:bg-blue-600/30 transition-all">
+                Submit Answer
+              </button>
+            )}
+          </form>
+        ) : (
+          /* MCQ or MSQ Mode */
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(optionsOnly).map(([key, value]) => (
+              <button 
+                key={key}
+                disabled={isSubmitted}
+                onClick={() => handleOptionClick(key)}
+                className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left ${
+                  selected.includes(key) 
+                    ? 'border-blue-500 bg-blue-500/10' 
+                    : 'border-neutral-700 bg-neutral-800 hover:border-neutral-500'
+                } ${isSubmitted && !selected.includes(key) ? 'opacity-50' : ''}`}
+              >
+                <span className={`w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-lg bg-neutral-700 text-[10px] font-bold uppercase ${
+                  selected.includes(key) ? 'text-blue-400' : 'text-zinc-400'
+                }`}>
+                  {key}
+                </span>
+                <span className="text-zinc-300 text-sm leading-tight">{value}</span>
+              </button>
+            ))}
+            
+            {isMSQ && !isSubmitted && (
+              <button 
+                onClick={() => setIsSubmitted(true)}
+                className="col-span-2 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-500 shadow-lg shadow-blue-900/20"
+              >
+                Submit Selection
+              </button>
+            )}
           </div>
-
-        } 
+        )}
       </div>
 
-        {
-          active && 
-            <div className="m-2">
-              <p> { active === correct[0] ?  <b>Correct</b> : <b>{`wrong correct answer is ${correct[0]}`}</b> } </p>
-              <p className="text-xs">Explanation :  {question.explanation} </p> 
+      {/* Feedback & Explanation */}
+      {isSubmitted && (
+        <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className={`p-4 rounded-2xl border ${
+            isCorrect ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'
+          }`}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`font-black italic uppercase text-sm ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                {isCorrect ? '✓ Correct' : '✕ Incorrect'}
+              </span>
             </div>
-        }
+            
+            {!isCorrect && (
+              <p className="text-zinc-400 text-xs mb-2">
+                Correct answer: <span className="text-zinc-200 font-mono">{correct.join(", ")}</span>
+              </p>
+            )}
 
+            <div className="pt-3 border-t border-white/5 text-xs text-zinc-400 leading-relaxed">
+              <strong className="text-zinc-300 block mb-1">EXPLANATION</strong>
+              {question.explanation}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 
 
 function ResourceManager(){
@@ -370,21 +452,26 @@ function ResourceManager(){
         default :
           return skipList.push(file) 
       }
-    })
+    });
 
     setLocalFileList(skipList);
-  
-    const uploadResult = await uploadFileWithSync(SaveList);
-    const sythesize = await processFileList(SynthesizeList);
-    
-    const errors = uploadResult.filter( result => result.sucess === false );
 
-    if (errors.length > 0) {
-      console.log(errors.map( error => error.message ))
+    try{
+      const uploadResult = await uploadFileWithSync(SaveList);
+      const sythesize = await processFileList(SynthesizeList);
+    
+      const errors = uploadResult.filter( result => result.sucess === false );
+
+      if (errors.length > 0) {
+        console.log(errors.map( error => error.message ))
+      }
+
+      setChange(prev => !prev);
+
+    } catch (err) {
+      console.error("Batch processing failed:", err);
     }
-
-    setTimeout(setChange(prev => !prev),5000);
-    
+      
   }
 
 

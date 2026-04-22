@@ -25,13 +25,13 @@ export async function signUp({email, password}) {
         email ,
         password ,
         options: {
-            emailRedirectTo: 'https://your-app.com/login',
+            emailRedirectTo: `${window.location.origin}/login`,
         },
 
     });
 
     if (signUpError){
-        return new Error("Sign Up Failed : ", signUpError.message);
+        return `Sign Up Failed : ${signUpError.message}`;
     }
 
     return "Varification Mail has been send successfully"
